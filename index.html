@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stow Blocked Dashboard — Wk 20</title>
+<title>Stow Blocked Dashboard — All Blocked WOIs</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,6 +12,7 @@
   .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
   .header h1 { font-size: 22px; font-weight: 500; }
   .header p { font-size: 13px; color: #6b6b66; margin-top: 4px; }
+  .source-tag { display: inline-block; background: #E6F1FB; color: #0C447C; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; margin-top: 4px; }
   .filters { display: flex; gap: 8px; align-items: center; background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.1); margin-bottom: 20px; flex-wrap: wrap; }
   .filter-group { display: flex; align-items: center; gap: 6px; }
   .filters label { font-size: 12px; color: #6b6b66; }
@@ -25,27 +26,38 @@
   .kpi { background: #ffffff; padding: 16px 18px; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.08); }
   .kpi-label { font-size: 12px; color: #6b6b66; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
   .kpi-value { font-size: 28px; font-weight: 500; }
-  .kpi-delta { font-size: 12px; margin-top: 4px; }
-  .kpi-delta.up { color: #A32D2D; }
-  .kpi-delta.down { color: #3B6D11; }
-  .kpi-delta.neutral { color: #6b6b66; }
+  .kpi-sub { font-size: 12px; color: #6b6b66; margin-top: 4px; }
+  .kpi-sub.danger { color: #A32D2D; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
   .card { background: #ffffff; padding: 16px 18px; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.08); }
   .card h3 { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
   .card-subtitle { font-size: 11px; color: #6b6b66; margin-bottom: 12px; margin-top: -8px; }
   .chart-wrap { position: relative; width: 100%; height: 260px; }
   table { width: 100%; font-size: 13px; border-collapse: collapse; }
-  th { text-align: left; color: #6b6b66; font-weight: 500; padding: 8px 6px; border-bottom: 0.5px solid rgba(0,0,0,0.1); font-size: 12px; }
+  th { text-align: left; color: #6b6b66; font-weight: 500; padding: 8px 6px; border-bottom: 0.5px solid rgba(0,0,0,0.1); font-size: 12px; cursor: pointer; user-select: none; }
+  th:hover { color: #1a1a1a; }
+  th.sortable::after { content: " ⇅"; opacity: 0.3; font-size: 10px; }
+  th.sort-asc::after { content: " ↑"; opacity: 1; }
+  th.sort-desc::after { content: " ↓"; opacity: 1; }
   td { padding: 8px 6px; border-bottom: 0.5px solid rgba(0,0,0,0.05); }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   td.bold { font-weight: 500; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
   .badge-replenish { background: #FAEEDA; color: #854F0B; }
   .badge-listing { background: #E6F1FB; color: #0C447C; }
-  .compare-table td:first-child { color: #6b6b66; }
+  .badge-notshippable { background: #F1EFE8; color: #444441; }
+  .badge-expired { background: #FCEBEB; color: #A32D2D; }
+  .badge-expdate { background: #E8F4DC; color: #2A4F08; }
+  .badge-fresh { background: #E8F4DC; color: #2A4F08; }
+  .badge-warm { background: #FAEEDA; color: #854F0B; }
+  .badge-stale { background: #FCEBEB; color: #A32D2D; }
+  .badge-critical { background: #A32D2D; color: #fff; }
+  .badge-northampton { background: #FCEBEB; color: #6a1a1a; }
+  .badge-wroclaw { background: #E6F1FB; color: #0C447C; }
   .blocked-wo-table { font-size: 12px; }
-  .blocked-wo-table td { padding: 6px; }
-  .blocked-wo-table .listing-name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blocked-wo-table td { padding: 6px; vertical-align: top; }
+  .blocked-wo-table .listing-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
   .blocked-wo-table mark { background: #FFF3B0; color: #1a1a1a; padding: 0 1px; border-radius: 2px; }
   .full-width-card { margin-bottom: 20px; }
   .insights { background: #FAEEDA; border-left: 3px solid #BA7517; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
@@ -63,7 +75,7 @@
   .ok li::before { color: #3B6D11; }
   @media (max-width: 900px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    .grid-2 { grid-template-columns: 1fr; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
     .filters input { min-width: 150px; }
   }
 </style>
@@ -73,8 +85,9 @@
 
   <div class="header">
     <div>
-      <h1>Stow Blocked / Unraised WOs — Dashboard</h1>
-      <p>Week 20 · Snapshot: 19 May 2026 · Wroclaw (WH 146, WO 90368) & Northampton (WH 138, WO 90369)</p>
+      <h1>Stow Blocked WOIs — Full View</h1>
+      <p>Snapshot: 19 May 2026 · All blocked WOIs across Wroclaw (WH 146) & Northampton (WH 138) · <span id="total-count">—</span> total blocked</p>
+      <span class="source-tag">Source: Raw WOI Details export</span>
     </div>
   </div>
 
@@ -83,35 +96,35 @@
       <label>Warehouse</label>
       <select id="f-warehouse" onchange="applyFilter()">
         <option value="all">Both</option>
-        <option value="wroclaw">Wroclaw (EU)</option>
-        <option value="northampton">Northampton (UK)</option>
+        <option value="Wroclaw">Wroclaw (EU)</option>
+        <option value="Northampton">Northampton (UK)</option>
       </select>
     </div>
     <div class="filter-group">
       <label>Reason</label>
-      <select id="f-reason" onchange="applyFilter()">
-        <option value="all">All</option>
-        <option value="Listing Failed Eligibility Check">Listing Failed Eligibility</option>
-        <option value="Needs Replenishment">Needs Replenishment</option>
-      </select>
+      <select id="f-reason" onchange="applyFilter()"><option value="all">All</option></select>
     </div>
     <div class="filter-group">
       <label>Brand</label>
-      <select id="f-brand" onchange="applyFilter()">
-        <option value="all">All brands</option>
+      <select id="f-brand" onchange="applyFilter()"><option value="all">All brands</option></select>
+    </div>
+    <div class="filter-group">
+      <label>WO</label>
+      <select id="f-wo" onchange="applyFilter()"><option value="all">All WOs</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Age</label>
+      <select id="f-age" onchange="applyFilter()">
+        <option value="all">All ages</option>
+        <option value="0-7">0-7 days</option>
+        <option value="8-14">8-14 days</option>
+        <option value="15-30">15-30 days</option>
+        <option value="30+">30+ days</option>
       </select>
     </div>
     <div class="filter-group">
       <label>Search</label>
-      <input type="text" id="f-search" placeholder="Listing ID, name, WO #..." oninput="applyFilter()" />
-    </div>
-    <div class="filter-group">
-      <label>Trend window</label>
-      <select id="f-weeks" onchange="renderTrend()">
-        <option value="7">Last 7 weeks</option>
-        <option value="4">Last 4 weeks</option>
-        <option value="3">Last 3 weeks</option>
-      </select>
+      <input type="text" id="f-search" placeholder="Listing, brand, WO..." oninput="applyFilter()" />
     </div>
     <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
     <div class="search-count" id="search-count"></div>
@@ -119,378 +132,419 @@
 
   <div class="kpi-grid" id="kpi-grid"></div>
 
-  <div class="insights warn">
-    <h4>This week needs attention</h4>
-    <ul>
-      <li>Northampton blocked % jumped to <strong>30.61%</strong> — nearly double Wk 19 (16.07%) and the highest in 7 weeks</li>
-      <li>Polar paints dominate Northampton — <strong>8 of 15</strong> blocked WOs are Polar listings needing replenishment (incl. 397 units of Direct to Rust Black)</li>
-      <li>Wroclaw blocked WOs grew from 8 → 21 (+162%) — BioCare listing eligibility is the biggest driver (11 of 21, all 12 qty each, likely one bulk listing issue)</li>
-      <li>"Listing Failed Eligibility" is now 25 of 36 total blocked WOs — BioCare on EU is the single biggest gap</li>
-      <li><em>Note: Listing eligibility issues are being investigated — expect movement over the coming weeks.</em></li>
-    </ul>
-  </div>
-
-  <div class="insights ok">
-    <h4>Good news</h4>
-    <ul>
-      <li>Zero unraised WOs this week (vs 2 last week) — every pick from stow WO was raised</li>
-      <li>Total pick from stow grew from 115 → 155 (+35%) — much higher throughput</li>
-    </ul>
-  </div>
+  <div class="insights warn" id="alert-box"></div>
 
   <div class="card full-width-card">
-    <h3>Blocked % — Weekly Trend</h3>
-    <p class="card-subtitle">Last 7 weeks · Wroclaw vs Northampton</p>
-    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    <h3>Aging Distribution — All Blocked WOIs</h3>
+    <p class="card-subtitle">How long each WOI has been stuck blocked, by warehouse</p>
+    <div class="chart-wrap"><canvas id="agingChart"></canvas></div>
   </div>
 
   <div class="grid-2">
     <div class="card">
-      <h3>Reason Breakdown — Current Week</h3>
-      <p class="card-subtitle">Component Unpickable Reason · Wk 20</p>
+      <h3>Reason Breakdown</h3>
+      <p class="card-subtitle">Why these WOIs are blocked</p>
       <div class="chart-wrap"><canvas id="reasonChart"></canvas></div>
     </div>
     <div class="card">
-      <h3>Top Brands Blocked — Wk 20</h3>
-      <p class="card-subtitle">Number of blocked WOs by brand</p>
+      <h3>Top Brands Blocked</h3>
+      <p class="card-subtitle">Blocked WOIs by brand</p>
       <div class="chart-wrap"><canvas id="brandChart"></canvas></div>
     </div>
   </div>
 
   <div class="card full-width-card">
-    <h3>Wroclaw vs Northampton — Side by Side</h3>
-    <table class="compare-table">
+    <h3>Blocked WOIs by WO — Carryover View</h3>
+    <p class="card-subtitle">Shows all WOs with blocked items, oldest first. Highlights how much is sitting from earlier weeks vs current.</p>
+    <table id="wo-summary-table">
       <thead>
         <tr>
-          <th>Metric</th>
-          <th style="text-align:right;">Wroclaw (EU)</th>
-          <th style="text-align:right;">Northampton (UK)</th>
-          <th style="text-align:right;">Total</th>
+          <th class="sortable" data-sort="age">WO Age</th>
+          <th>WO ID</th>
+          <th>Warehouse</th>
+          <th class="num sortable" data-sort="count">Blocked WOIs</th>
+          <th>Top Reason</th>
+          <th>Top Brand</th>
         </tr>
       </thead>
-      <tbody>
-        <tr><td>Warehouse ID</td><td class="num">146</td><td class="num">138</td><td class="num bold">—</td></tr>
-        <tr><td>WO ID</td><td class="num">90368</td><td class="num">90369</td><td class="num bold">—</td></tr>
-        <tr><td>Pick from Stow WOs</td><td class="num">106</td><td class="num">49</td><td class="num bold">155</td></tr>
-        <tr><td>Total WOs Raised</td><td class="num">106</td><td class="num">49</td><td class="num bold">155</td></tr>
-        <tr><td>Unraised WOs</td><td class="num">0</td><td class="num">0</td><td class="num bold">0</td></tr>
-        <tr><td>Blocked WOs</td><td class="num">21</td><td class="num">15</td><td class="num bold">36</td></tr>
-        <tr><td>Blocked %</td><td class="num">19.81%</td><td class="num">30.61%</td><td class="num bold">23.23%</td></tr>
-        <tr><td>Top Reason</td><td class="num">Listing Failed Eligibility (20)</td><td class="num">Needs Replenishment (10)</td><td class="num bold">Listing Eligibility (25)</td></tr>
-        <tr><td>Top Brand Blocked</td><td class="num">BioCare (11)</td><td class="num">Polar (8)</td><td class="num bold">BioCare (11)</td></tr>
-      </tbody>
+      <tbody id="wo-summary"></tbody>
     </table>
   </div>
 
-  <div class="grid-2">
-    <div class="card">
-      <h3>Wroclaw — Blocked WO Detail</h3>
-      <p class="card-subtitle">WO 90368 · EU Blocked WO's tab · <span id="wroclaw-count"></span></p>
-      <table class="blocked-wo-table">
-        <thead>
-          <tr>
-            <th>Listing</th>
-            <th>Brand</th>
-            <th class="num">Qty</th>
-            <th>Reason</th>
-          </tr>
-        </thead>
-        <tbody id="wroclaw-blocked"></tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3>Northampton — Blocked WO Detail</h3>
-      <p class="card-subtitle">WO 90369 · UK Blocked WO's tab · <span id="northampton-count"></span></p>
-      <table class="blocked-wo-table">
-        <thead>
-          <tr>
-            <th>Listing</th>
-            <th>Brand</th>
-            <th class="num">Qty</th>
-            <th>Reason</th>
-          </tr>
-        </thead>
-        <tbody id="northampton-blocked"></tbody>
-      </table>
-    </div>
+  <div class="card full-width-card">
+    <h3>⚠ Stale Blocked WOIs — Top 15 Oldest</h3>
+    <p class="card-subtitle">These are the priority items. Anything 15+ days has been blocked through multiple weekly cycles.</p>
+    <table class="blocked-wo-table">
+      <thead>
+        <tr>
+          <th>Age</th>
+          <th>Listing</th>
+          <th>Brand</th>
+          <th>WO</th>
+          <th>Warehouse</th>
+          <th class="num">Qty</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody id="stale-table"></tbody>
+    </table>
   </div>
 
   <div class="card full-width-card">
-    <h3>Week-over-Week Comparison</h3>
-    <table>
+    <h3>All Blocked WOIs — Full Detail</h3>
+    <p class="card-subtitle"><span id="detail-count">—</span> · Click column headers to sort</p>
+    <table class="blocked-wo-table">
       <thead>
         <tr>
-          <th>Metric</th>
-          <th class="num" style="text-align:right;">Wk 19</th>
-          <th class="num" style="text-align:right;">Wk 20</th>
-          <th class="num" style="text-align:right;">Change</th>
+          <th class="sortable" data-sort="age">Age</th>
+          <th class="sortable" data-sort="listing">Listing</th>
+          <th class="sortable" data-sort="brand">Brand</th>
+          <th class="sortable" data-sort="wo">WO</th>
+          <th class="sortable" data-sort="warehouse">WH</th>
+          <th class="num sortable" data-sort="qty">Qty</th>
+          <th class="sortable" data-sort="reason">Reason</th>
         </tr>
       </thead>
-      <tbody>
-        <tr><td>Total Pick from Stow</td><td class="num">115</td><td class="num">155</td><td class="num" style="color:#3B6D11;">+40 (+35%)</td></tr>
-        <tr><td>Total Blocked WOs</td><td class="num">17</td><td class="num">36</td><td class="num" style="color:#A32D2D;">+19 (+112%)</td></tr>
-        <tr><td>Overall Blocked %</td><td class="num">14.78%</td><td class="num">23.23%</td><td class="num" style="color:#A32D2D;">+8.45 pp</td></tr>
-        <tr><td>Unraised WOs</td><td class="num">2</td><td class="num">0</td><td class="num" style="color:#3B6D11;">-2 (resolved)</td></tr>
-        <tr><td>Wroclaw Blocked %</td><td class="num">14.04%</td><td class="num">19.81%</td><td class="num" style="color:#A32D2D;">+5.77 pp</td></tr>
-        <tr><td>Northampton Blocked %</td><td class="num">16.07%</td><td class="num">30.61%</td><td class="num" style="color:#A32D2D;">+14.54 pp</td></tr>
-      </tbody>
+      <tbody id="full-table"></tbody>
     </table>
   </div>
 
 </div>
 
 <script>
-  // Wroclaw (EU, WH 146, WO 90368)
-  const wroclawBlocked = [
-    { listing: "L00MBBLC", brand: "BioCare", name: "Polyzyme Forte", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L01WN4LD", brand: "Superfeet", name: "Run Pain Relief Insoles", qty: 6, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L06SMC3R", brand: "BioCare", name: "Magnesium Malate 90 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L06UMDWA", brand: "BioCare", name: "Adult Multivitamins & Minerals", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L093NTGL", brand: "BioCare", name: "Methyl B Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L09NC5L9", brand: "BioCare", name: "BioAcidophilus 20 Billion 60 Caps", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0ALRBIP", brand: "BioCare", name: "Thyroid Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0EHWCKF", brand: "Pure Encapsulations", name: "Vitamine D3 400 IE", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0KJORGO", brand: "Bosch TT", name: "Bosch Badventilator 1500 DH 125mm", qty: 80, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0MSJEX0", brand: "BioCare", name: "Vegan Omega 3 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0OISS0Y", brand: "BioCare", name: "Vitamin C Powder 60g", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0P09ILX", brand: "BioCare", name: "Baby BioFlora 33g", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0P190DC", brand: "BioCare", name: "Children's Elderberry Complex 150ml", qty: 6, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0PI1PJB", brand: "Petsafe", name: "Microchip Activated Cat Flap Brown", qty: 131, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0PV1RHS", brand: "BioCare", name: "Male Multinutrient 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0QNIN5W", brand: "BioCare", name: "Magnesium Taurate 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0QO6DR4", brand: "THE NORTH FACE", name: "Men's Resolve Jacket Shell Estate Blue XL", qty: 29, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0SVMERE", brand: "THE NORTH FACE", name: "W ANTORA RAIN HOODIE", qty: 6, reason: "Needs Replenishment", wo: "90368" },
-    { listing: "L0TFP56X", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 5, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0UYNL41", brand: "Bosch TT", name: "Bosch Air Purifier 4000", qty: 250, reason: "Listing Failed Eligibility Check", wo: "90368" },
-    { listing: "L0WW4VWS", brand: "BioCare", name: "BioAcidophilus Forte 30 Caps", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" }
-  ];
+const allData = [{"warehouse_id": "138", "warehouse": "Northampton", "wo": "87690", "woi": "2421976", "woi_type": "FBA", "status": "Queued", "age": 24, "created": "4/26/2026 5:51:30 AM", "listing": "L0FHMZT0", "qty": 1, "fg_name": "Pandora Jewelry Forever Pandora Cubic Zirconia Earrings in Sterling Silver, With Gift Box", "brand": "Pandora", "component_name": "Pandora Jewelry Forever Pandora Cubic Zirconia Earrings in Sterling Silver, With Gift Box", "reason": "Listing is Marked Not Shippable"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "87690", "woi": "2421986", "woi_type": "FBA", "status": "Queued", "age": 24, "created": "4/26/2026 5:51:30 AM", "listing": "L0KPHJCY", "qty": 91, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "87690", "woi": "2421994", "woi_type": "FBA", "status": "Queued", "age": 24, "created": "4/26/2026 5:51:30 AM", "listing": "L0TPXFCB", "qty": 192, "fg_name": "Science in Sport Go Isotonic Energy Gel with Caffeine, Berry, 60 ml, Pack of 30", "brand": "SiS", "component_name": "Science in Sport Go Isotonic Energy Gel with Caffeine, Berry, 60 ml, Pack of 30", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "87690", "woi": "2422018", "woi_type": "FBA", "status": "Queued", "age": 24, "created": "4/26/2026 5:51:30 AM", "listing": "L0MYUIIV", "qty": 12, "fg_name": "Strider 12 Sport Balance Bike - Red", "brand": "Strider", "component_name": "Strider 12 Sport Balance Bike - Red", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441459", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0KPHJCY", "qty": 23, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441461", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0VMMEIY", "qty": 4, "fg_name": "PetSafe, Staywell, Aluminium Pet Door, Extra Large, Energy Efficient, Easy Install", "brand": "Petsafe", "component_name": "PetSafe, Staywell, Aluminium Pet Door, Extra Large, Energy Efficient, Easy Install", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441470", "woi_type": "FBA", "status": "Processing", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L06T5AAV", "qty": 42, "fg_name": "Polar Patio Floor Paint - Cream RAL9001-5 Litres - Outdoor Floor Paint for Concrete, Garden Patio, Stone, Pathway Flags & Paving Slabs - Easy to Use - UV & Weather Resistant", "brand": "Polar", "component_name": "Polar Patio Floor Paint - Cream RAL9001-5 Litres - Outdoor Floor Paint for Concrete, Garden Patio, Stone, Pathway Flags & Paving Slabs - Easy to Use - UV & Weather Resistant", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441471", "woi_type": "FBA", "status": "Processing", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0GDLQLT", "qty": 15, "fg_name": "Polar Clear Lacquer Paint - 2.5 Litres | Satin Finish | Quick Drying & Durable Lacquer for Wood, Plastic, Metal, Concrete, Glass & Ceramics | Water Resistant Coating for Interior & Exterior Surfaces", "brand": "Polar", "component_name": "Polar Clear Lacquer Paint - 2.5 Litres | Satin Finish | Quick Drying & Durable Lacquer for Wood, Plastic, Metal, Concrete, Glass & Ceramics | Water Resistant Coating for Interior & Exterior Surfaces", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441474", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L06JN2RO", "qty": 53, "fg_name": "Polar Black Tarmac Paint - 5 Litre - Enhance & Protect Driveway - Interior & Exterior - Ideal For Concrete Floor & Home Tarmac Drive, Corridors & Offices - Quick Drying & Matt Finish", "brand": "Polar", "component_name": "Polar Black Tarmac Paint - 5 Litre - Enhance & Protect Driveway - Interior & Exterior - Ideal For Concrete Floor & Home Tarmac Drive, Corridors & Offices - Quick Drying & Matt Finish", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441476", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0RZFAX2", "qty": 76, "fg_name": "Polar - Patio & Decking Paint Sealer 5 Litres", "brand": "Polar", "component_name": "Polar - Patio & Decking Paint Sealer 5 Litres", "reason": "Listing is Marked Not Shippable"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441481", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0C89OS8", "qty": 12, "fg_name": "Strider 12 Sport Balance Bike - Pink", "brand": "Strider", "component_name": "Strider 12 Sport Balance Bike - Pink", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "88362", "woi": "2441487", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:17:52 PM", "listing": "L0COIQKO", "qty": 20, "fg_name": "The North Face Men's Y2k Sports backpack (pack of 1) - TNF BLACK - OS", "brand": "THE NORTH FACE", "component_name": "The North Face Men's Y2k Sports backpack (pack of 1) - TNF BLACK - OS", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472547", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0C89OS8", "qty": 4, "fg_name": "Strider 12 Sport Balance Bike - Pink", "brand": "Strider", "component_name": "Strider 12 Sport Balance Bike - Pink", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472551", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0FZ1CUT", "qty": 16, "fg_name": "Sage - The Combi Wave 3 In 1, Brushed Stainless Steel", "brand": "Sage", "component_name": "Sage - The Combi Wave 3 In 1, Brushed Stainless Steel", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472553", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0KPHJCY", "qty": 16, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472567", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0ITDDP5", "qty": 11, "fg_name": "The North Face - Resolve Fleece Jacket for Men With Full-Zip, Black, S", "brand": "THE NORTH FACE", "component_name": "The North Face - Resolve Fleece Jacket for Men With Full-Zip, Black, S", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472578", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0EY340L", "qty": 67, "fg_name": "Polar - Decking Paint Dark Grey 5 Litres", "brand": "Polar", "component_name": "Polar - Decking Paint Dark Grey 5 Litres", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472581", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0RMUQVR", "qty": 185, "fg_name": "Polar Direct to Rust Satin Anthracite Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "brand": "Polar", "component_name": "Polar Direct to Rust Satin Anthracite Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472583", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0NIDMKN", "qty": 166, "fg_name": "Polar Direct to Rust Satin White Metal Spray Paint - 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "brand": "Polar", "component_name": "Polar Direct to Rust Satin White Metal Spray Paint - 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472587", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0JFMKKM", "qty": 94, "fg_name": "Polar Matt Grey Primer Spray Paint - 2 x 400ml | High-Build Filler Primer Paint for Wood, Metal, Plastic, Ceramics, Tiles & Painted Surfaces | Spray Primer for Long Lasting Protection & Quick Drying", "brand": "Polar", "component_name": "Polar Matt Grey Primer Spray Paint - 2 x 400ml | High-Build Filler Primer Paint for Wood, Metal, Plastic, Ceramics, Tiles & Painted Surfaces | Spray Primer for Long Lasting Protection & Quick Drying", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472589", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0M1SHYY", "qty": 5, "fg_name": "Polar Black Masonry Paint - 500ml | Matt Finish | Multi-Purpose Interior & Exterior Emulsion Paint for Kitchen, Living Room, Garden, Walls, Ceilings, Brick, Concrete | Durable Performance", "brand": "Polar", "component_name": "Polar Black Masonry Paint - 500ml | Matt Finish | Multi-Purpose Interior & Exterior Emulsion Paint for Kitchen, Living Room, Garden, Walls, Ceilings, Brick, Concrete | Durable Performance", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "89477", "woi": "2472595", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:17:47 PM", "listing": "L0GR81QA", "qty": 4, "fg_name": "Polar Paint & Varnish Stripper Spray - 6 x 500ml | Industrial Strength Gel Removal for Paints, Varnishes & Other Stubborn Resides | Multi Surface Paint Stripper for Wood, Metal and Concrete", "brand": "Polar", "component_name": "Polar Paint & Varnish Stripper Spray - 6 x 500ml | Industrial Strength Gel Removal for Paints, Varnishes & Other Stubborn Resides | Multi Surface Paint Stripper for Wood, Metal and Concrete", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495193", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0KPHJCY", "qty": 12, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495194", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0R6OJDM", "qty": 430, "fg_name": "PetSafe Microchip Cat Door, Exterior or Interior Pet Door - Multi-User RFID Access Up to 40 Pets, 4-Way Locking, Weatherproof, DIY Easy Install, Hardware Kit; Privacy for Cat Litter Box or Pet Feeder", "brand": "Petsafe", "component_name": "PetSafe Microchip Cat Door, Exterior or Interior Pet Door - Multi-User RFID Access Up to 40 Pets, 4-Way Locking, Weatherproof, DIY Easy Install, Hardware Kit; Privacy for Cat Litter Box or Pet Feeder", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495195", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0VMMEIY", "qty": 14, "fg_name": "PetSafe, Staywell, Aluminium Pet Door, Extra Large, Energy Efficient, Easy Install", "brand": "Petsafe", "component_name": "PetSafe, Staywell, Aluminium Pet Door, Extra Large, Energy Efficient, Easy Install", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495200", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0PF34LN", "qty": 882, "fg_name": "Polar Damp & Stain Block Spray | Matt White Spray Paint - 500ml | One Coat Anti Mould Spray | Damp Proof Paint for Internal Walls, Wood, Stone & Brick | Stain Blocker Paint for Ceiling", "brand": "Polar", "component_name": "Polar Damp & Stain Block Spray | Matt White Spray Paint - 500ml | One Coat Anti Mould Spray | Damp Proof Paint for Internal Walls, Wood, Stone & Brick | Stain Blocker Paint for Ceiling", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495201", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0EEDKF8", "qty": 600, "fg_name": "Polar Direct to Rust Satin Black Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "brand": "Polar", "component_name": "Polar Direct to Rust Satin Black Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495203", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0PT4EZX", "qty": 36, "fg_name": "Polar Clear Leak Fix Spray - 400ml - Waterproof Roof Sealant - Instantly Seals Leaks and Cracks, for Lasting Protection on Roofs, Drainpipes and Gutter Repairs, for Interior and Exterior Use", "brand": "Polar", "component_name": "Polar Clear Leak Fix Spray - 400ml - Waterproof Roof Sealant - Instantly Seals Leaks and Cracks, for Lasting Protection on Roofs, Drainpipes and Gutter Repairs, for Interior and Exterior Use", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495204", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L05NU5KO", "qty": 49, "fg_name": "Polar Flawless Clear Lacquer Spray - 400ml - Matt Finish - Non-Yellowing & Scratch Resistant - Interior & Exterior Surfaces for Wood, Metal, Plastics, Glass & Ceramics", "brand": "Polar", "component_name": "Polar Flawless Clear Lacquer Spray - 400ml - Matt Finish - Non-Yellowing & Scratch Resistant - Interior & Exterior Surfaces for Wood, Metal, Plastics, Glass & Ceramics", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495205", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0SMMTF3", "qty": 218, "fg_name": "Polar Flawless Clear Lacquer Spray - 2 x 400ml - Matt Finish - Non-Yellowing & Scratch Resistant - Interior & Exterior Surfaces for Wood, Metal, Plastics, Glass & Ceramics", "brand": "Polar", "component_name": "Polar Flawless Clear Lacquer Spray - 2 x 400ml - Matt Finish - Non-Yellowing & Scratch Resistant - Interior & Exterior Surfaces for Wood, Metal, Plastics, Glass & Ceramics", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495206", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0HDDQPA", "qty": 26, "fg_name": "Polar Light Grey Floor & Garage Paint - 5 Litres | Ideal Garage Floor Paint for Garages, Warehouses & Concrete Floors | Hard Wearing & Slip Resistant Concrete Paint | Mid-Sheen Finish | Interior Use", "brand": "Polar", "component_name": "Polar Light Grey Floor & Garage Paint - 5 Litres | Ideal Garage Floor Paint for Garages, Warehouses & Concrete Floors | Hard Wearing & Slip Resistant Concrete Paint | Mid-Sheen Finish | Interior Use", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495207", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0GNJJXF", "qty": 41, "fg_name": "Polar Direct to Rust Satin White Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "brand": "Polar", "component_name": "Polar Direct to Rust Satin White Metal Spray Paint - 2 x 400ml - Perfect for Metal, Wood, Furniture, Rust - Outdoor & Indoor Surfaces - Easy to Apply - 3 in 1 Primer, Undercoat & Topcoat", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495210", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L06JN2RO", "qty": 23, "fg_name": "Polar Black Tarmac Paint - 5 Litre - Enhance & Protect Driveway - Interior & Exterior - Ideal For Concrete Floor & Home Tarmac Drive, Corridors & Offices - Quick Drying & Matt Finish", "brand": "Polar", "component_name": "Polar Black Tarmac Paint - 5 Litre - Enhance & Protect Driveway - Interior & Exterior - Ideal For Concrete Floor & Home Tarmac Drive, Corridors & Offices - Quick Drying & Matt Finish", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495211", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L06T5AAV", "qty": 40, "fg_name": "Polar Patio Floor Paint - Cream RAL9001-5 Litres - Outdoor Floor Paint for Concrete, Garden Patio, Stone, Pathway Flags & Paving Slabs - Easy to Use - UV & Weather Resistant", "brand": "Polar", "component_name": "Polar Patio Floor Paint - Cream RAL9001-5 Litres - Outdoor Floor Paint for Concrete, Garden Patio, Stone, Pathway Flags & Paving Slabs - Easy to Use - UV & Weather Resistant", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495219", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0SKABUB", "qty": 100, "fg_name": "The North Face - Gilman Duffel-Tasche - Robuste Tragetasche mit Schultergurten - Schwarz/ Grau, Gr\u00f6\u00dfe M", "brand": "THE NORTH FACE", "component_name": "The North Face - Gilman Duffel-Tasche - Robuste Tragetasche mit Schultergurten - Schwarz/ Grau, Gr\u00f6\u00dfe M", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495222", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0COIQKO", "qty": 20, "fg_name": "The North Face Men's Y2k Sports backpack (pack of 1) - TNF BLACK - OS", "brand": "THE NORTH FACE", "component_name": "The North Face Men's Y2k Sports backpack (pack of 1) - TNF BLACK - OS", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495223", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0H839MR", "qty": 4, "fg_name": "The North Face - Resolve Fleece Jacket for Women With Full-Zip - Black, S", "brand": "THE NORTH FACE", "component_name": "The North Face - Resolve Fleece Jacket for Women With Full-Zip - Black, S", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90369", "woi": "2495225", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:43:35 PM", "listing": "L0X27JES", "qty": 2, "fg_name": "Wendy Funk Mono", "brand": "HEYDUDE", "component_name": "Wendy Funk Mono", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90372", "woi": "2495246", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:48:19 PM", "listing": "L0BBMVPS", "qty": 47, "fg_name": "Science In Sport Hydro Electrolyte Tablets Sugar Free, Lemon Flavour, 20 Servings, 1 Pack", "brand": "SiS", "component_name": "Science In Sport Hydro Electrolyte Tablets Sugar Free, Lemon Flavour, 20 Servings, 1 Pack", "reason": "Needs Replenishment"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90372", "woi": "2495247", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:48:19 PM", "listing": "L0A3SQVR", "qty": 24, "fg_name": "Science in Sport Beta Fuel Dual Source Energy Chews, Energy Bars, Lemon Flavour, 46g of Carbs, 60g Bar (20 Pack)", "brand": "SiS", "component_name": "Science in Sport Beta Fuel Dual Source Energy Chews, Energy Bars, Lemon Flavour, 46g of Carbs, 60g Bar (20 Pack)", "reason": "Requires Expiration Date Input"}, {"warehouse_id": "138", "warehouse": "Northampton", "wo": "90372", "woi": "2495249", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:48:19 PM", "listing": "L05IXWDM", "qty": 10, "fg_name": "Science in Sport GO Energy Bar Chocolate Fudge, 30 x 40 gm", "brand": "SiS", "component_name": "Science in Sport GO Energy Bar Chocolate Fudge, 30 x 40 gm", "reason": "Needs Replenishment"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "78474", "woi": "2155378", "woi_type": "FBA", "status": "Queued", "age": 103, "created": "2/6/2026 4:09:35 PM", "listing": "L0EVURT7", "qty": 5, "fg_name": "Yogi Tea\u00ae Selecci\u00f3n Ayurv\u00e9dica, 6 t\u00e9s Bestseller con 6 bolsitas de infusi\u00f3n por paquete, 6 paquetes", "brand": "Yogi", "component_name": "Yogi Tea\u00ae Selecci\u00f3n Ayurv\u00e9dica, 6 t\u00e9s Bestseller con 3 bolsitas de infusi\u00f3n por paquete, 6 paquetes", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "87976", "woi": "2431500", "woi_type": "FBA", "status": "Queued", "age": 22, "created": "4/28/2026 8:59:00 AM", "listing": "L0OWNVEL", "qty": 50, "fg_name": "Yorkshire Tea - 160 Tea Bags", "brand": "Taylors of Harrogate - Yorkshire Tea", "component_name": "Yorkshire Tea - 160 Tea Bags", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "87976", "woi": "2431501", "woi_type": "FBA", "status": "Queued", "age": 22, "created": "4/28/2026 8:59:00 AM", "listing": "L00MKQDK", "qty": 50, "fg_name": "Yorkshire Tea - 160 Tea Bags", "brand": "Taylors of Harrogate - Yorkshire Tea", "component_name": "Yorkshire Tea - 160 Tea Bags", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441497", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L0WW4VWS", "qty": 24, "fg_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "brand": "BioCare", "component_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441521", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L0TFP56X", "qty": 7, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441539", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L0SGREZN", "qty": 4, "fg_name": "Trace Minerals | Liquid Ionic Zinc | 50 mg Zinc with Magnesium | Supports Immune System, Digestion, Growth, & Development | for Kids and Adults | 45 Servings, 2 fl oz (1 Pack)", "brand": "Trace Minerals", "component_name": "Trace Minerals | Liquid Ionic Zinc | 50 mg Zinc with Magnesium | Supports Immune System, Digestion, Growth, & Development | for Kids and Adults | 45 Servings, 2 fl oz (1 Pack)", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441540", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L0KGK7PP", "qty": 50, "fg_name": "Wahl Legend Haarschneidemaschine - Professionelle Netzschermaschine - Long Range Fading Clipper", "brand": "Wahl Pro Barber/Stylist", "component_name": "Wahl Legend Haarschneidemaschine - Professionelle Netzschermaschine - Long Range Fading Clipper", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441575", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L0VNPYMK", "qty": 50, "fg_name": "The North Face Gorra Horizon de Malla, Unisex - Color Negro - Talla \u00danica (57,8 cm)", "brand": "THE NORTH FACE", "component_name": "The North Face Gorra Horizon de Malla, Unisex - Color Negro - Talla \u00danica (57,8 cm)", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "88363", "woi": "2441579", "woi_type": "FBA", "status": "Queued", "age": 20, "created": "4/30/2026 1:22:33 PM", "listing": "L09BNWCU", "qty": 6, "fg_name": "FINIS Positive Drive Training Swim Fins (Small) Yellow", "brand": "FINIS", "component_name": "FINIS Positive Drive Training Swim Fins (Small) Yellow", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472465", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0KGK7PP", "qty": 12, "fg_name": "Wahl Legend Haarschneidemaschine - Professionelle Netzschermaschine - Long Range Fading Clipper", "brand": "Wahl Pro Barber/Stylist", "component_name": "Wahl Legend Haarschneidemaschine - Professionelle Netzschermaschine - Long Range Fading Clipper", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472471", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0WW4VWS", "qty": 12, "fg_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "brand": "BioCare", "component_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472475", "woi_type": "FBA", "status": "Processing", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0HZWIEW", "qty": 11, "fg_name": "Pure Encapsulations - L-lisina Plus - 30 Capsules", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations - L-lisina Plus - 30 Capsules", "reason": "Inventory is Expired"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472477", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0TFP56X", "qty": 5, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472482", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0AG9QO7", "qty": 5, "fg_name": "Superfeet All-Purpose Support Medium Arch Insoles (Blue) - Trim-To-Fit Orthotic Shoe Inserts - Professional Grade - Men 11.5-13 / Women 12.5-14", "brand": "Superfeet", "component_name": "Superfeet All-Purpose Support Medium Arch Insoles (Blue) - Trim-To-Fit Orthotic Shoe Inserts - Professional Grade - Men 11.5-13 / Women 12.5-14", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472487", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0BCSHTH", "qty": 5, "fg_name": "Yorkshire Gold Loose 6x250g", "brand": "Taylors of Harrogate - Yorkshire Tea", "component_name": "Yorkshire Gold Loose 6x250g", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472492", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0ST9ORJ", "qty": 5, "fg_name": "Fresh Mint & Aloe Vera Toothpaste with Fluoride", "brand": "Green People", "component_name": "Fresh Mint & Aloe Vera Toothpaste with Fluoride", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89474", "woi": "2472495", "woi_type": "FBA", "status": "Queued", "age": 12, "created": "5/8/2026 3:13:27 PM", "listing": "L0SGREZN", "qty": 7, "fg_name": "Trace Minerals | Liquid Ionic Zinc | 50 mg Zinc with Magnesium | Supports Immune System, Digestion, Growth, & Development | for Kids and Adults | 45 Servings, 2 fl oz (1 Pack)", "brand": "Trace Minerals", "component_name": "Trace Minerals | Liquid Ionic Zinc | 50 mg Zinc with Magnesium | Supports Immune System, Digestion, Growth, & Development | for Kids and Adults | 45 Servings, 2 fl oz (1 Pack)", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89915", "woi": "2485120", "woi_type": "OCT", "status": "Queued", "age": 8, "created": "5/12/2026 4:39:14 PM", "listing": "L0PMWZ6P", "qty": 4, "fg_name": "Sage - The Barista Express, Black Gloss", "brand": "Sage", "component_name": "Sage - The Barista Express, Black Gloss", "reason": "Needs Replenishment"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "89915", "woi": "2485127", "woi_type": "OCT", "status": "Queued", "age": 8, "created": "5/12/2026 4:39:14 PM", "listing": "L02JOQTS", "qty": 4, "fg_name": "Barista Express Brushed Stainless still No Temperature control Jug", "brand": "Sage", "component_name": "Barista Express Brushed Stainless still No Temperature control Jug", "reason": "Needs Replenishment"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492216", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0G7LRLE", "qty": 8, "fg_name": "Pure Encapsulations vitamine C Gebufferd", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations vitamine C Gebufferd", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492217", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0Z2NAX7", "qty": 8, "fg_name": "Pure Encapsulations - Vitamine B12 Liquid 500mcg - Draagt bij tot vermindering van Moeheid - 30ml", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations - Vitamine B12 Liquid 500mcg - Draagt bij tot vermindering van Moeheid - 30ml", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492218", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0ZIA9XP", "qty": 24, "fg_name": "Pure Encapsulations B-complex", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations B-complex", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492219", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0A3KZ84", "qty": 4, "fg_name": "Pure Encapsulations Cranberry", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Cranberry", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492220", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0YPPNEZ", "qty": 24, "fg_name": "Pure Encapsulations - L-Glutamine Powder - Bij Intensieve Belasting van de Spieren, Ideaal voor Atleten - 227 Grams", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations - L-Glutamine Powder - Bij Intensieve Belasting van de Spieren, Ideaal voor Atleten - 227 Grams", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492221", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0N8V4XQ", "qty": 18, "fg_name": "Pure Encapsulations Zink 15", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Zink 15", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492222", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0ZKOFIO", "qty": 10, "fg_name": "Pure Encapsulations A.I. Enzymen", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations A.I. Enzymen", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492223", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0GBPD3P", "qty": 11, "fg_name": "Pure Encapsulations Ashwagandha", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Ashwagandha", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492224", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0FLXSGW", "qty": 12, "fg_name": "Pure Encapsulations Energy Xtra", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Energy Xtra", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90213", "woi": "2492225", "woi_type": "FBA", "status": "Queued", "age": 6, "created": "5/14/2026 9:44:30 AM", "listing": "L0STEB7G", "qty": 9, "fg_name": "Pure Encapsulations Pycnogenol", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Pycnogenol", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495073", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0EHWCKF", "qty": 12, "fg_name": "Pure Encapsulations Vitamine D3 400 IE", "brand": "Atrium - Pure Encapsulations", "component_name": "Pure Encapsulations Vitamine D3 400 IE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495077", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0P190DC", "qty": 6, "fg_name": "BioCare - Children's Elderberry Complex | Especially Designed for Children to Support their Immune System - 150ml", "brand": "BioCare", "component_name": "BioCare - Children's Elderberry Complex | Especially Designed for Children to Support their Immune System - 150ml", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495078", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0P09ILX", "qty": 12, "fg_name": "BioCare - Baby BioFlora | Blend of LAB4B Live Bacteria Specially Formulated for Babies - 33g", "brand": "BioCare", "component_name": "BioCare - Baby BioFlora | Blend of LAB4B Live Bacteria Specially Formulated for Babies - 33g", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495079", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0PV1RHS", "qty": 12, "fg_name": "BioCare - Male Multinutrient | High Potency Multinutrient for Men\u2019s Health | Supports Energy, Testosterone Levels, Cardiovascular Health & Fertility - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - Male Multinutrient | High Potency Multinutrient for Men\u2019s Health | Supports Energy, Testosterone Levels, Cardiovascular Health & Fertility - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495080", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0QNIN5W", "qty": 12, "fg_name": "BioCare - Magnesium Taurate | Supports Mental Health, Wellbeing & Muscle Function - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - Magnesium Taurate | Supports Mental Health, Wellbeing & Muscle Function - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495081", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L06UMDWA", "qty": 12, "fg_name": "BioCare - Adult Multivitamins & Minerals - 90 Capsules", "brand": "BioCare", "component_name": "BioCare - Adult Multivitamins & Minerals - 90 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495082", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0WW4VWS", "qty": 12, "fg_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "brand": "BioCare", "component_name": "BioCare - BioAcidophilus Forte | 75 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 30 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495083", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L09NC5L9", "qty": 12, "fg_name": "BioCare - BioAcidophilus | 20 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - BioAcidophilus | 20 Billion LAB4 Live Bacteria | Food Supplement Suitable for Vegetarians and Vegans - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495084", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L00MBBLC", "qty": 12, "fg_name": "BioCare - Polyzyme Forte | Enzyme Complex for Broad Spectrum Support with Bromelain, Lipase, Protease and Amylase | Vegan Friendly - 90 Capsules", "brand": "BioCare", "component_name": "BioCare - Polyzyme Forte | Enzyme Complex for Broad Spectrum Support with Bromelain, Lipase, Protease and Amylase | Vegan Friendly - 90 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495085", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0OISS0Y", "qty": 12, "fg_name": "BioCare - Vitamin C Powder | Immune Support, Healthy Skin & Collagen & Energy Production - 60g", "brand": "BioCare", "component_name": "BioCare - Vitamin C Powder | Immune Support, Healthy Skin & Collagen & Energy Production - 60g", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495086", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0MSJEX0", "qty": 12, "fg_name": "BioCare - Vegan Omega 3 (Algal DHA & EPA) | For Heart, Brain, Vision & Skin Health Support - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - Vegan Omega 3 (Algal DHA & EPA) | For Heart, Brain, Vision & Skin Health Support - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495087", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L093NTGL", "qty": 12, "fg_name": "BioCare - Methyl B Complex - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - Methyl B Complex - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495088", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0ALRBIP", "qty": 12, "fg_name": "BioCare - Thyroid Complex | Iodine, Selenium, Vitamins B2 & B3 for Thyroid & Energy Support | With Zinc & Tyrosine - 60 Capsules", "brand": "BioCare", "component_name": "BioCare - Thyroid Complex | Iodine, Selenium, Vitamins B2 & B3 for Thyroid & Energy Support | With Zinc & Tyrosine - 60 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495089", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L06SMC3R", "qty": 12, "fg_name": "BioCare - Magnesium Malate | Provides A Complex of Malic Acid and Magnesium for Energy Support and Muscle Function | Suitable for Vegetarians and Vegans - 90 Capsules", "brand": "BioCare", "component_name": "BioCare - Magnesium Malate | Provides A Complex of Malic Acid and Magnesium for Energy Support and Muscle Function | Suitable for Vegetarians and Vegans - 90 Capsules", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495111", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0TFP56X", "qty": 5, "fg_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "brand": "Petsafe", "component_name": "PetSafe Tunnel Extension, Compatible with Microchip and Manual Cat Flaps - WHITE", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495115", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0PI1PJB", "qty": 131, "fg_name": "PetSafe Microchip Activated Cat Flap, Exclusive Entry, Easy Install, 4 Way Manual Locking, Energy Efficient, Draught Excluder, Convenient, Brown", "brand": "Petsafe", "component_name": "PetSafe Microchip Activated Cat Flap, Exclusive Entry, Easy Install, 4 Way Manual Locking, Energy Efficient, Draught Excluder, Convenient, Brown", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495126", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L01WN4LD", "qty": 6, "fg_name": "Superfeet Run Pain Relief Insoles - Trim-To-Fit Foam & Carbon Fiber Shoe Inserts - High Arch Support for Plantar Fasciitis - Professional Grade - 9.5-11 Men / 10.5-12 Women", "brand": "Superfeet", "component_name": "Superfeet Run Pain Relief Insoles - Trim-To-Fit Foam & Carbon Fiber Shoe Inserts - High Arch Support for Plantar Fasciitis - Professional Grade - 9.5-11 Men / 10.5-12 Women", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495133", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0KJORGO", "qty": 250, "fg_name": "Bosch Badventilator 1500 DH - 125 mm Durchmesser", "brand": "Bosch TT", "component_name": "Bosch Badventilator 1500 DH - 125 mm Durchmesser", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495135", "woi_type": "FBA", "status": "Processing", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0UYNL41", "qty": 250, "fg_name": "Bosch Air Purifier 4000", "brand": "Bosch TT", "component_name": "Bosch Air Purifier 4000", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495150", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0SVMERE", "qty": 6, "fg_name": "W ANTORA RAIN HOODIE", "brand": "THE NORTH FACE", "component_name": "W ANTORA RAIN HOODIE", "reason": "Needs Replenishment"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90368", "woi": "2495160", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:41:10 PM", "listing": "L0QO6DR4", "qty": 29, "fg_name": "The North Face - Men's Resolve Jacket Shell - Breathable, Waterproof Hiking & Camping Jacket & Windbreaker with Adjustable Hood - Estate Blue, XL", "brand": "THE NORTH FACE", "component_name": "The North Face - Men's Resolve Jacket Shell - Breathable, Waterproof Hiking & Camping Jacket & Windbreaker with Adjustable Hood - Estate Blue, XL", "reason": "Listing Failed Eligibility Check"}, {"warehouse_id": "146", "warehouse": "Wroclaw", "wo": "90370", "woi": "2495229", "woi_type": "FBA", "status": "Queued", "age": 5, "created": "5/15/2026 3:46:56 PM", "listing": "L06KWPBC", "qty": 25, "fg_name": "Science in Sport Rego Clear Recovery | | Raspberry & Cranberry, 460g", "brand": "SiS", "component_name": "Science in Sport Rego Clear Recovery | | Raspberry & Cranberry, 460g", "reason": "Listing Failed Eligibility Check"}];
 
-  // Northampton (UK, WH 138, WO 90369)
-  const northamptonBlocked = [
-    { listing: "L05NU5KO", brand: "Polar", name: "Polar Flawless Clear Lacquer Spray Matt", qty: 24, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L06JN2RO", brand: "Polar", name: "Polar Black Tarmac Paint 5L", qty: 23, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L06T5AAV", brand: "Polar", name: "Polar Patio Floor Paint Cream", qty: 40, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0COIQKO", brand: "THE NORTH FACE", name: "Y2k Sports Backpack", qty: 20, reason: "Listing Failed Eligibility Check", wo: "90369" },
-    { listing: "L0EEDKF8", brand: "Polar", name: "Polar Direct to Rust Satin Black 2x400ml", qty: 397, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0GNJJXF", brand: "Polar", name: "Polar Direct to Rust Satin White 2x400ml", qty: 33, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0H839MR", brand: "THE NORTH FACE", name: "Resolve Fleece Jacket Women Black S", qty: 4, reason: "Listing Failed Eligibility Check", wo: "90369" },
-    { listing: "L0HDDQPA", brand: "Polar", name: "Polar Light Grey Floor & Garage Paint 5L", qty: 20, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0KPHJCY", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90369" },
-    { listing: "L0PF34LN", brand: "Polar", name: "Polar Damp & Stain Block Spray Matt White", qty: 171, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0PT4EZX", brand: "Polar", name: "Polar Clear Leak Fix Spray 400ml", qty: 35, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0R6OJDM", brand: "Petsafe", name: "PetSafe Microchip Cat Door", qty: 120, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0SKABUB", brand: "THE NORTH FACE", name: "Gilman Duffel Bag M", qty: 9, reason: "Needs Replenishment", wo: "90369" },
-    { listing: "L0VMMEIY", brand: "Petsafe", name: "Staywell Aluminium Pet Door XL", qty: 14, reason: "Listing Failed Eligibility Check", wo: "90369" },
-    { listing: "L0X27JES", brand: "HEYDUDE", name: "Wendy Funk Mono", qty: 2, reason: "Listing Failed Eligibility Check", wo: "90369" }
-  ];
 
-  const historicalData = {
-    weeks: ["W14", "W15", "W16", "W17", "W18", "W19", "W20"],
-    wroclawBlocked: [70.89, 13.46, 8.47, 13.13, 6.59, 14.04, 19.81],
-    northamptonBlocked: [7.79, 8.57, 27.27, 22.58, 20.00, 16.07, 30.61]
+let sortKey = "age";
+let sortDir = "desc";
+
+// Populate dropdowns
+function populateDropdowns() {
+  const brands = [...new Set(allData.map(d => d.brand).filter(Boolean))].sort();
+  const sel = document.getElementById("f-brand");
+  brands.forEach(b => sel.add(new Option(b, b)));
+
+  const wos = [...new Set(allData.map(d => d.wo))].sort();
+  const woSel = document.getElementById("f-wo");
+  wos.forEach(w => {
+    const d = allData.find(x => x.wo === w);
+    woSel.add(new Option(`${w} (${d.warehouse}, ${d.age}d)`, w));
+  });
+
+  const reasons = [...new Set(allData.map(d => d.reason).filter(Boolean))].sort();
+  const reasonSel = document.getElementById("f-reason");
+  reasons.forEach(r => reasonSel.add(new Option(r, r)));
+}
+
+function ageBucket(age) {
+  if (age <= 7) return "0-7";
+  if (age <= 14) return "8-14";
+  if (age <= 30) return "15-30";
+  return "30+";
+}
+
+function badgeForAge(age) {
+  if (age <= 7) return ["badge-fresh", `${age}d`];
+  if (age <= 14) return ["badge-warm", `${age}d`];
+  if (age <= 30) return ["badge-stale", `${age}d`];
+  return ["badge-critical", `${age}d ⚠`];
+}
+
+function badgeForReason(reason) {
+  const map = {
+    "Listing Failed Eligibility Check": ["badge-listing", "Listing Eligibility"],
+    "Needs Replenishment": ["badge-replenish", "Replenishment"],
+    "Listing is Marked Not Shippable": ["badge-notshippable", "Not Shippable"],
+    "Inventory is Expired": ["badge-expired", "Expired"],
+    "Requires Expiration Date Input": ["badge-expdate", "Exp Date Input"]
   };
+  return map[reason] || ["badge-notshippable", reason || "—"];
+}
 
-  // Populate brand dropdown from data
-  function populateBrandDropdown() {
-    const allBrands = new Set();
-    [...wroclawBlocked, ...northamptonBlocked].forEach(d => allBrands.add(d.brand));
-    const sorted = Array.from(allBrands).sort();
-    const sel = document.getElementById("f-brand");
-    sorted.forEach(b => {
-      const opt = document.createElement("option");
-      opt.value = b; opt.textContent = b;
-      sel.appendChild(opt);
-    });
-  }
+function badgeForWarehouse(wh) {
+  return wh === "Wroclaw" ? "badge-wroclaw" : "badge-northampton";
+}
 
-  function computeKpis(warehouse) {
-    if (warehouse === "wroclaw") {
-      return { blocked: 21, blockedPct: "19.81%", unraised: 0, pickFromStow: 106,
-               deltaBlocked: 21 - 8, deltaPct: 19.81 - 14.04 };
+function filterData() {
+  const wh = document.getElementById("f-warehouse").value;
+  const reason = document.getElementById("f-reason").value;
+  const brand = document.getElementById("f-brand").value;
+  const wo = document.getElementById("f-wo").value;
+  const ageF = document.getElementById("f-age").value;
+  const search = document.getElementById("f-search").value.trim().toLowerCase();
+
+  return allData.filter(d => {
+    if (wh !== "all" && d.warehouse !== wh) return false;
+    if (reason !== "all" && d.reason !== reason) return false;
+    if (brand !== "all" && d.brand !== brand) return false;
+    if (wo !== "all" && d.wo !== wo) return false;
+    if (ageF !== "all" && ageBucket(d.age) !== ageF) return false;
+    if (search) {
+      const hay = `${d.listing} ${d.brand} ${d.wo} ${d.warehouse} ${d.fg_name} ${d.reason}`.toLowerCase();
+      if (!hay.includes(search)) return false;
     }
-    if (warehouse === "northampton") {
-      return { blocked: 15, blockedPct: "30.61%", unraised: 0, pickFromStow: 49,
-               deltaBlocked: 15 - 9, deltaPct: 30.61 - 16.07 };
+    return true;
+  });
+}
+
+function highlight(text, term) {
+  if (!term || !text) return text || "";
+  const re = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+  return text.replace(re, "<mark>$1</mark>");
+}
+
+function renderKpis() {
+  const filtered = filterData();
+  const stale = filtered.filter(d => d.age > 14).length;
+  const critical = filtered.filter(d => d.age > 30).length;
+  const totalQty = filtered.reduce((s, d) => s + d.qty, 0);
+  const uniqueListings = new Set(filtered.map(d => d.listing)).size;
+
+  document.getElementById("total-count").textContent = `${allData.length} blocked WOIs`;
+
+  document.getElementById("kpi-grid").innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Blocked WOIs</div>
+      <div class="kpi-value">${filtered.length}</div>
+      <div class="kpi-sub">${uniqueListings} unique listings</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Stale (15+ days)</div>
+      <div class="kpi-value">${stale}</div>
+      <div class="kpi-sub ${stale > 0 ? 'danger' : ''}">${((stale/filtered.length)*100 || 0).toFixed(0)}% of blocked</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Critical (30+ days)</div>
+      <div class="kpi-value">${critical}</div>
+      <div class="kpi-sub ${critical > 0 ? 'danger' : ''}">${critical > 0 ? 'Needs escalation' : 'None'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Blocked Qty</div>
+      <div class="kpi-value">${totalQty.toLocaleString()}</div>
+      <div class="kpi-sub">Units across all WOIs</div>
+    </div>
+  `;
+}
+
+function renderAlerts() {
+  const data = filterData();
+  const oldest = [...data].sort((a, b) => b.age - a.age)[0];
+  const wroclaw = data.filter(d => d.warehouse === "Wroclaw");
+  const northampton = data.filter(d => d.warehouse === "Northampton");
+  const woCount = new Set(data.map(d => d.wo)).size;
+  const carryover = data.filter(d => d.age > 7).length;
+
+  let html = `<h4>Key signals from this snapshot</h4><ul>`;
+  if (oldest && oldest.age > 30) {
+    html += `<li><strong>${oldest.age} days blocked:</strong> ${oldest.listing} (${oldest.brand}) in ${oldest.warehouse} — ${oldest.reason}. This has been stuck through ~${Math.floor(oldest.age/7)} weekly cycles.</li>`;
+  }
+  if (carryover > 0) {
+    html += `<li><strong>${carryover} blocked WOIs are carryovers</strong> (older than 7 days) — meaning they've been blocked through at least one prior weekly snapshot. Current weekly sheet doesn't surface these.</li>`;
+  }
+  html += `<li><strong>${woCount} distinct WOs</strong> have blocked items right now — not just this week's 2 WOs. Older WOs (87690, 88362, 88363, 89474, 89477) still have unresolved blocks.</li>`;
+  html += `<li><em>Listing eligibility issues are being investigated — expect movement over the coming weeks.</em></li>`;
+  html += `</ul>`;
+  document.getElementById("alert-box").innerHTML = html;
+}
+
+let agingChart, reasonChart, brandChart;
+
+function renderAgingChart() {
+  const data = filterData();
+  const buckets = ["0-7", "8-14", "15-30", "30+"];
+  const wroclaw = buckets.map(b => data.filter(d => d.warehouse === "Wroclaw" && ageBucket(d.age) === b).length);
+  const northampton = buckets.map(b => data.filter(d => d.warehouse === "Northampton" && ageBucket(d.age) === b).length);
+
+  const ctx = document.getElementById("agingChart").getContext("2d");
+  if (agingChart) agingChart.destroy();
+  agingChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: buckets.map(b => b + " days"),
+      datasets: [
+        { label: "Wroclaw (EU)", data: wroclaw, backgroundColor: "#534AB7" },
+        { label: "Northampton (UK)", data: northampton, backgroundColor: "#D85A30" }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 12 } } } },
+      scales: { x: { stacked: false }, y: { stacked: false, beginAtZero: true } }
     }
-    return { blocked: 36, blockedPct: "23.23%", unraised: 0, pickFromStow: 155,
-             deltaBlocked: 36 - 17, deltaPct: 23.23 - 14.78 };
-  }
+  });
+}
 
-  function renderKpis() {
-    const wh = document.getElementById("f-warehouse").value;
-    const k = computeKpis(wh);
-    const arrow = (n) => n > 0 ? "▲" : n < 0 ? "▼" : "—";
-    const cls = (n) => n > 0 ? "up" : n < 0 ? "down" : "neutral";
-    document.getElementById("kpi-grid").innerHTML = `
-      <div class="kpi">
-        <div class="kpi-label">Blocked WOs</div>
-        <div class="kpi-value">${k.blocked}</div>
-        <div class="kpi-delta ${cls(k.deltaBlocked)}">${arrow(k.deltaBlocked)} ${Math.abs(k.deltaBlocked)} vs Wk 19</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Blocked %</div>
-        <div class="kpi-value">${k.blockedPct}</div>
-        <div class="kpi-delta ${cls(k.deltaPct)}">${arrow(k.deltaPct)} ${Math.abs(k.deltaPct).toFixed(2)} pp vs Wk 19</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Unraised WOs</div>
-        <div class="kpi-value">${k.unraised}</div>
-        <div class="kpi-delta down">▼ from 2 last week</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Pick from Stow</div>
-        <div class="kpi-value">${k.pickFromStow}</div>
-        <div class="kpi-delta neutral">Total raised this week</div>
-      </div>
-    `;
-  }
+function renderReasonChart() {
+  const data = filterData();
+  const counts = {};
+  data.forEach(d => { counts[d.reason] = (counts[d.reason] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
 
-  function badgeClass(reason) {
-    if (reason === "Needs Replenishment") return "badge-replenish";
-    if (reason === "Listing Failed Eligibility Check") return "badge-listing";
-    return "";
-  }
-  function shortReason(r) {
-    if (r === "Listing Failed Eligibility Check") return "Listing Eligibility";
-    if (r === "Needs Replenishment") return "Replenishment";
-    return r;
-  }
+  const ctx = document.getElementById("reasonChart").getContext("2d");
+  if (reasonChart) reasonChart.destroy();
+  reasonChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{ data: sorted.map(e => e[1]), backgroundColor: ["#185FA5", "#BA7517", "#444441", "#A32D2D", "#3B6D11"] }]
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { stepSize: 10 } } }
+    }
+  });
+}
 
-  // Highlight matched search term in text
-  function highlight(text, term) {
-    if (!term) return text;
-    const re = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
-    return text.replace(re, "<mark>$1</mark>");
-  }
+function renderBrandChart() {
+  const data = filterData();
+  const counts = {};
+  data.forEach(d => { if (d.brand) counts[d.brand] = (counts[d.brand] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-  // Filter data based on all active filters
-  function filterData(data) {
-    const reason = document.getElementById("f-reason").value;
-    const brand = document.getElementById("f-brand").value;
-    const search = document.getElementById("f-search").value.trim().toLowerCase();
-    return data.filter(d => {
-      if (reason !== "all" && d.reason !== reason) return false;
-      if (brand !== "all" && d.brand !== brand) return false;
-      if (search) {
-        const haystack = `${d.listing} ${d.name} ${d.brand} ${d.wo} ${d.reason}`.toLowerCase();
-        if (!haystack.includes(search)) return false;
-      }
-      return true;
+  const ctx = document.getElementById("brandChart").getContext("2d");
+  if (brandChart) brandChart.destroy();
+  brandChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{ data: sorted.map(e => e[1]), backgroundColor: ["#A32D2D", "#BA7517", "#185FA5", "#534AB7", "#1D9E75", "#D85A30", "#444441", "#854F0B", "#0C447C", "#2A4F08"] }]
+    },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { stepSize: 2 } } }
+    }
+  });
+}
+
+function renderWoSummary() {
+  const data = filterData();
+  const woGroups = {};
+  data.forEach(d => {
+    if (!woGroups[d.wo]) woGroups[d.wo] = { wo: d.wo, warehouse: d.warehouse, age: d.age, items: [] };
+    woGroups[d.wo].items.push(d);
+  });
+  const sorted = Object.values(woGroups).sort((a, b) => b.age - a.age);
+
+  document.getElementById("wo-summary").innerHTML = sorted.map(g => {
+    const reasons = {};
+    const brands = {};
+    g.items.forEach(d => {
+      reasons[d.reason] = (reasons[d.reason] || 0) + 1;
+      if (d.brand) brands[d.brand] = (brands[d.brand] || 0) + 1;
     });
-  }
-
-  function renderBlockedTable(data, elId, countElId) {
-    const search = document.getElementById("f-search").value.trim();
-    const filtered = filterData(data);
-    document.getElementById(countElId).textContent = `Showing ${filtered.length} of ${data.length}`;
-    document.getElementById(elId).innerHTML = filtered.map(d => `
+    const topReason = Object.entries(reasons).sort((a,b) => b[1]-a[1])[0];
+    const topBrand = Object.entries(brands).sort((a,b) => b[1]-a[1])[0];
+    const [ageBadge, ageText] = badgeForAge(g.age);
+    return `
       <tr>
-        <td><strong>${highlight(d.listing, search)}</strong><br><span style="color:#888; font-size:11px;" class="listing-name">${highlight(d.name, search)}</span></td>
-        <td>${highlight(d.brand, search)}</td>
-        <td class="num">${d.qty}</td>
-        <td><span class="badge ${badgeClass(d.reason)}">${shortReason(d.reason)}</span></td>
+        <td><span class="badge ${ageBadge}">${ageText}</span></td>
+        <td><strong>${g.wo}</strong></td>
+        <td><span class="badge ${badgeForWarehouse(g.warehouse)}">${g.warehouse}</span></td>
+        <td class="num bold">${g.items.length}</td>
+        <td>${topReason ? topReason[0] + ' (' + topReason[1] + ')' : '—'}</td>
+        <td>${topBrand ? topBrand[0] + ' (' + topBrand[1] + ')' : '—'}</td>
       </tr>
-    `).join("") || `<tr><td colspan="4" style="text-align:center; color:#888; padding:20px;">No matching WOs</td></tr>`;
-  }
+    `;
+  }).join("");
+}
 
-  let trendChartInstance, reasonChartInstance, brandChartInstance;
+function renderStaleTable() {
+  const data = filterData();
+  const stale = data.filter(d => d.age > 7).sort((a, b) => b.age - a.age).slice(0, 15);
+  const search = document.getElementById("f-search").value.trim();
 
-  function renderTrend() {
-    const weeks = parseInt(document.getElementById("f-weeks").value);
-    const startIdx = historicalData.weeks.length - weeks;
-    const ctx = document.getElementById("trendChart").getContext("2d");
-    if (trendChartInstance) trendChartInstance.destroy();
-    trendChartInstance = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: historicalData.weeks.slice(startIdx),
-        datasets: [
-          { label: "Wroclaw (EU)", data: historicalData.wroclawBlocked.slice(startIdx), borderColor: "#534AB7", backgroundColor: "#534AB7", tension: 0.3, pointRadius: 4, borderWidth: 2 },
-          { label: "Northampton (UK)", data: historicalData.northamptonBlocked.slice(startIdx), borderColor: "#D85A30", backgroundColor: "#D85A30", tension: 0.3, pointRadius: 4, borderWidth: 2, borderDash: [5, 4] }
-        ]
-      },
-      options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 12 } } } },
-        scales: { y: { ticks: { callback: v => v + "%" }, beginAtZero: true } } }
-    });
-  }
+  document.getElementById("stale-table").innerHTML = stale.map(d => {
+    const [ageBadge, ageText] = badgeForAge(d.age);
+    const [reasonBadge, reasonText] = badgeForReason(d.reason);
+    return `
+      <tr>
+        <td><span class="badge ${ageBadge}">${ageText}</span></td>
+        <td><strong>${highlight(d.listing, search)}</strong><br><span style="color:#888; font-size:11px;" class="listing-name">${highlight(d.fg_name, search)}</span></td>
+        <td>${highlight(d.brand, search)}</td>
+        <td>${d.wo}</td>
+        <td><span class="badge ${badgeForWarehouse(d.warehouse)}">${d.warehouse.slice(0,4)}</span></td>
+        <td class="num">${d.qty}</td>
+        <td><span class="badge ${reasonBadge}">${reasonText}</span></td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">No stale WOIs in this filter</td></tr>`;
+}
 
-  function renderReason() {
-    const wh = document.getElementById("f-warehouse").value;
-    let data;
-    if (wh === "wroclaw") data = { "Listing Failed Eligibility Check": 20, "Needs Replenishment": 1 };
-    else if (wh === "northampton") data = { "Listing Failed Eligibility Check": 5, "Needs Replenishment": 10 };
-    else data = { "Listing Failed Eligibility Check": 25, "Needs Replenishment": 11 };
-    const ctx = document.getElementById("reasonChart").getContext("2d");
-    if (reasonChartInstance) reasonChartInstance.destroy();
-    reasonChartInstance = new Chart(ctx, {
-      type: "bar",
-      data: { labels: Object.keys(data),
-        datasets: [{ data: Object.values(data), backgroundColor: ["#185FA5", "#BA7517"] }] },
-      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { stepSize: 5 } } } }
-    });
-  }
+function renderFullTable() {
+  const data = filterData();
+  const sorted = [...data].sort((a, b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (typeof va === "string") { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    if (va < vb) return sortDir === "asc" ? -1 : 1;
+    if (va > vb) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
 
-  function renderBrand() {
-    const wh = document.getElementById("f-warehouse").value;
-    let data;
-    if (wh === "wroclaw") {
-      data = { "BioCare": 11, "THE NORTH FACE": 2, "Petsafe": 2, "Bosch TT": 2, "Pure Encapsulations": 1, "Superfeet": 1 };
-    } else if (wh === "northampton") {
-      data = { "Polar": 8, "THE NORTH FACE": 3, "Petsafe": 3, "HEYDUDE": 1 };
-    } else {
-      data = { "BioCare": 11, "Polar": 8, "THE NORTH FACE": 5, "Petsafe": 5, "Bosch TT": 2, "Pure Encapsulations": 1, "Superfeet": 1, "HEYDUDE": 1 };
-    }
-    const ctx = document.getElementById("brandChart").getContext("2d");
-    if (brandChartInstance) brandChartInstance.destroy();
-    brandChartInstance = new Chart(ctx, {
-      type: "bar",
-      data: { labels: Object.keys(data),
-        datasets: [{ data: Object.values(data), backgroundColor: ["#A32D2D", "#BA7517", "#185FA5", "#534AB7", "#1D9E75", "#D85A30", "#444441", "#854F0B"] }] },
-      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { stepSize: 2 } } } }
-    });
-  }
+  const search = document.getElementById("f-search").value.trim();
+  document.getElementById("detail-count").textContent = `Showing ${sorted.length} of ${allData.length} WOIs`;
 
-  function updateSearchCount() {
-    const total = wroclawBlocked.length + northamptonBlocked.length;
-    const matched = filterData(wroclawBlocked).length + filterData(northamptonBlocked).length;
-    const search = document.getElementById("f-search").value.trim();
-    const brand = document.getElementById("f-brand").value;
-    const reason = document.getElementById("f-reason").value;
-    const hasActiveFilter = search || brand !== "all" || reason !== "all";
-    document.getElementById("search-count").textContent = hasActiveFilter ? `${matched} of ${total} WOs match` : "";
-  }
+  document.getElementById("full-table").innerHTML = sorted.map(d => {
+    const [ageBadge, ageText] = badgeForAge(d.age);
+    const [reasonBadge, reasonText] = badgeForReason(d.reason);
+    return `
+      <tr>
+        <td><span class="badge ${ageBadge}">${ageText}</span></td>
+        <td><strong>${highlight(d.listing, search)}</strong><br><span style="color:#888; font-size:11px;" class="listing-name">${highlight(d.fg_name, search)}</span></td>
+        <td>${highlight(d.brand, search)}</td>
+        <td>${d.wo}</td>
+        <td><span class="badge ${badgeForWarehouse(d.warehouse)}">${d.warehouse.slice(0,4)}</span></td>
+        <td class="num">${d.qty}</td>
+        <td><span class="badge ${reasonBadge}">${reasonText}</span></td>
+      </tr>
+    `;
+  }).join("") || `<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">No WOIs match these filters</td></tr>`;
 
-  function clearFilters() {
-    document.getElementById("f-warehouse").value = "all";
-    document.getElementById("f-reason").value = "all";
-    document.getElementById("f-brand").value = "all";
-    document.getElementById("f-search").value = "";
-    applyFilter();
-  }
+  // Update sort indicators
+  document.querySelectorAll("th.sortable").forEach(th => {
+    th.classList.remove("sort-asc", "sort-desc");
+    if (th.dataset.sort === sortKey) th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+  });
+}
 
-  function applyFilter() {
-    renderKpis();
-    renderBlockedTable(wroclawBlocked, "wroclaw-blocked", "wroclaw-count");
-    renderBlockedTable(northamptonBlocked, "northampton-blocked", "northampton-count");
-    renderReason();
-    renderBrand();
-    updateSearchCount();
-  }
+function updateSearchCount() {
+  const filtered = filterData();
+  const search = document.getElementById("f-search").value.trim();
+  const hasFilter = search || ["f-warehouse","f-reason","f-brand","f-wo","f-age"].some(id => document.getElementById(id).value !== "all");
+  document.getElementById("search-count").textContent = hasFilter ? `${filtered.length} of ${allData.length} match` : "";
+}
 
-  // Init
-  populateBrandDropdown();
+function clearFilters() {
+  ["f-warehouse","f-reason","f-brand","f-wo","f-age"].forEach(id => document.getElementById(id).value = "all");
+  document.getElementById("f-search").value = "";
+  applyFilter();
+}
+
+function applyFilter() {
   renderKpis();
-  renderBlockedTable(wroclawBlocked, "wroclaw-blocked", "wroclaw-count");
-  renderBlockedTable(northamptonBlocked, "northampton-blocked", "northampton-count");
-  renderTrend();
-  renderReason();
-  renderBrand();
+  renderAlerts();
+  renderAgingChart();
+  renderReasonChart();
+  renderBrandChart();
+  renderWoSummary();
+  renderStaleTable();
+  renderFullTable();
   updateSearchCount();
+}
+
+// Column sorting
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.sort;
+    if (sortKey === k) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortKey = k; sortDir = "desc"; }
+    renderFullTable();
+  });
+});
+
+populateDropdowns();
+applyFilter();
 </script>
 </body>
 </html>
