@@ -13,8 +13,14 @@
   .header h1 { font-size: 22px; font-weight: 500; }
   .header p { font-size: 13px; color: #6b6b66; margin-top: 4px; }
   .filters { display: flex; gap: 8px; align-items: center; background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.1); margin-bottom: 20px; flex-wrap: wrap; }
-  .filters label { font-size: 12px; color: #6b6b66; margin-right: 4px; }
-  .filters select { font-size: 13px; padding: 6px 10px; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 6px; background: white; cursor: pointer; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filters label { font-size: 12px; color: #6b6b66; }
+  .filters select, .filters input { font-size: 13px; padding: 6px 10px; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 6px; background: white; cursor: pointer; }
+  .filters input { cursor: text; min-width: 200px; }
+  .filters input:focus, .filters select:focus { outline: none; border-color: #534AB7; }
+  .clear-btn { background: #f1efe8; border: 0.5px solid rgba(0,0,0,0.1); padding: 6px 12px; border-radius: 6px; font-size: 12px; color: #444441; cursor: pointer; }
+  .clear-btn:hover { background: #e8e6df; }
+  .search-count { font-size: 12px; color: #6b6b66; font-style: italic; margin-left: auto; }
   .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
   .kpi { background: #ffffff; padding: 16px 18px; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.08); }
   .kpi-label { font-size: 12px; color: #6b6b66; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
@@ -40,6 +46,7 @@
   .blocked-wo-table { font-size: 12px; }
   .blocked-wo-table td { padding: 6px; }
   .blocked-wo-table .listing-name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blocked-wo-table mark { background: #FFF3B0; color: #1a1a1a; padding: 0 1px; border-radius: 2px; }
   .full-width-card { margin-bottom: 20px; }
   .insights { background: #FAEEDA; border-left: 3px solid #BA7517; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
   .insights h4 { font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #633806; }
@@ -57,6 +64,7 @@
   @media (max-width: 900px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     .grid-2 { grid-template-columns: 1fr; }
+    .filters input { min-width: 150px; }
   }
 </style>
 </head>
@@ -71,24 +79,42 @@
   </div>
 
   <div class="filters">
-    <label>Warehouse</label>
-    <select id="f-warehouse" onchange="applyFilter()">
-      <option value="all">Both</option>
-      <option value="wroclaw">Wroclaw (EU)</option>
-      <option value="northampton">Northampton (UK)</option>
-    </select>
-    <label style="margin-left: 12px;">Reason</label>
-    <select id="f-reason" onchange="applyFilter()">
-      <option value="all">All</option>
-      <option value="Listing Failed Eligibility Check">Listing Failed Eligibility</option>
-      <option value="Needs Replenishment">Needs Replenishment</option>
-    </select>
-    <label style="margin-left: 12px;">Trend window</label>
-    <select id="f-weeks" onchange="renderTrend()">
-      <option value="7">Last 7 weeks</option>
-      <option value="4">Last 4 weeks</option>
-      <option value="3">Last 3 weeks</option>
-    </select>
+    <div class="filter-group">
+      <label>Warehouse</label>
+      <select id="f-warehouse" onchange="applyFilter()">
+        <option value="all">Both</option>
+        <option value="wroclaw">Wroclaw (EU)</option>
+        <option value="northampton">Northampton (UK)</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Reason</label>
+      <select id="f-reason" onchange="applyFilter()">
+        <option value="all">All</option>
+        <option value="Listing Failed Eligibility Check">Listing Failed Eligibility</option>
+        <option value="Needs Replenishment">Needs Replenishment</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Brand</label>
+      <select id="f-brand" onchange="applyFilter()">
+        <option value="all">All brands</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Search</label>
+      <input type="text" id="f-search" placeholder="Listing ID, name, WO #..." oninput="applyFilter()" />
+    </div>
+    <div class="filter-group">
+      <label>Trend window</label>
+      <select id="f-weeks" onchange="renderTrend()">
+        <option value="7">Last 7 weeks</option>
+        <option value="4">Last 4 weeks</option>
+        <option value="3">Last 3 weeks</option>
+      </select>
+    </div>
+    <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
+    <div class="search-count" id="search-count"></div>
   </div>
 
   <div class="kpi-grid" id="kpi-grid"></div>
@@ -100,6 +126,7 @@
       <li>Polar paints dominate Northampton — <strong>8 of 15</strong> blocked WOs are Polar listings needing replenishment (incl. 397 units of Direct to Rust Black)</li>
       <li>Wroclaw blocked WOs grew from 8 → 21 (+162%) — BioCare listing eligibility is the biggest driver (11 of 21, all 12 qty each, likely one bulk listing issue)</li>
       <li>"Listing Failed Eligibility" is now 25 of 36 total blocked WOs — BioCare on EU is the single biggest gap</li>
+      <li><em>Note: Listing eligibility issues are being investigated — expect movement over the coming weeks.</em></li>
     </ul>
   </div>
 
@@ -158,7 +185,7 @@
   <div class="grid-2">
     <div class="card">
       <h3>Wroclaw — Blocked WO Detail</h3>
-      <p class="card-subtitle">21 blocked WOs · WO 90368 · EU Blocked WO's tab</p>
+      <p class="card-subtitle">WO 90368 · EU Blocked WO's tab · <span id="wroclaw-count"></span></p>
       <table class="blocked-wo-table">
         <thead>
           <tr>
@@ -173,7 +200,7 @@
     </div>
     <div class="card">
       <h3>Northampton — Blocked WO Detail</h3>
-      <p class="card-subtitle">15 blocked WOs · WO 90369 · UK Blocked WO's tab</p>
+      <p class="card-subtitle">WO 90369 · UK Blocked WO's tab · <span id="northampton-count"></span></p>
       <table class="blocked-wo-table">
         <thead>
           <tr>
@@ -213,48 +240,48 @@
 </div>
 
 <script>
-  // Wroclaw (EU, WH 146, WO 90368) — from EU Blocked WO's tab
+  // Wroclaw (EU, WH 146, WO 90368)
   const wroclawBlocked = [
-    { listing: "L00MBBLC", brand: "BioCare", name: "Polyzyme Forte", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L01WN4LD", brand: "Superfeet", name: "Run Pain Relief Insoles", qty: 6, reason: "Listing Failed Eligibility Check" },
-    { listing: "L06SMC3R", brand: "BioCare", name: "Magnesium Malate 90 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L06UMDWA", brand: "BioCare", name: "Adult Multivitamins & Minerals", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L093NTGL", brand: "BioCare", name: "Methyl B Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L09NC5L9", brand: "BioCare", name: "BioAcidophilus 20 Billion 60 Caps", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0ALRBIP", brand: "BioCare", name: "Thyroid Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0EHWCKF", brand: "Pure Encapsulations", name: "Vitamine D3 400 IE", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0KJORGO", brand: "Bosch TT", name: "Bosch Badventilator 1500 DH 125mm", qty: 80, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0MSJEX0", brand: "BioCare", name: "Vegan Omega 3 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0OISS0Y", brand: "BioCare", name: "Vitamin C Powder 60g", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0P09ILX", brand: "BioCare", name: "Baby BioFlora 33g", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0P190DC", brand: "BioCare", name: "Children's Elderberry Complex 150ml", qty: 6, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0PI1PJB", brand: "Petsafe", name: "Microchip Activated Cat Flap Brown", qty: 131, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0PV1RHS", brand: "BioCare", name: "Male Multinutrient 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0QNIN5W", brand: "BioCare", name: "Magnesium Taurate 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0QO6DR4", brand: "THE NORTH FACE", name: "Men's Resolve Jacket Shell Estate Blue XL", qty: 29, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0SVMERE", brand: "THE NORTH FACE", name: "W ANTORA RAIN HOODIE", qty: 6, reason: "Needs Replenishment" },
-    { listing: "L0TFP56X", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 5, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0UYNL41", brand: "Bosch TT", name: "Bosch Air Purifier 4000", qty: 250, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0WW4VWS", brand: "BioCare", name: "BioAcidophilus Forte 30 Caps", qty: 12, reason: "Listing Failed Eligibility Check" }
+    { listing: "L00MBBLC", brand: "BioCare", name: "Polyzyme Forte", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L01WN4LD", brand: "Superfeet", name: "Run Pain Relief Insoles", qty: 6, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L06SMC3R", brand: "BioCare", name: "Magnesium Malate 90 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L06UMDWA", brand: "BioCare", name: "Adult Multivitamins & Minerals", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L093NTGL", brand: "BioCare", name: "Methyl B Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L09NC5L9", brand: "BioCare", name: "BioAcidophilus 20 Billion 60 Caps", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0ALRBIP", brand: "BioCare", name: "Thyroid Complex 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0EHWCKF", brand: "Pure Encapsulations", name: "Vitamine D3 400 IE", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0KJORGO", brand: "Bosch TT", name: "Bosch Badventilator 1500 DH 125mm", qty: 80, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0MSJEX0", brand: "BioCare", name: "Vegan Omega 3 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0OISS0Y", brand: "BioCare", name: "Vitamin C Powder 60g", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0P09ILX", brand: "BioCare", name: "Baby BioFlora 33g", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0P190DC", brand: "BioCare", name: "Children's Elderberry Complex 150ml", qty: 6, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0PI1PJB", brand: "Petsafe", name: "Microchip Activated Cat Flap Brown", qty: 131, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0PV1RHS", brand: "BioCare", name: "Male Multinutrient 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0QNIN5W", brand: "BioCare", name: "Magnesium Taurate 60 Capsules", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0QO6DR4", brand: "THE NORTH FACE", name: "Men's Resolve Jacket Shell Estate Blue XL", qty: 29, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0SVMERE", brand: "THE NORTH FACE", name: "W ANTORA RAIN HOODIE", qty: 6, reason: "Needs Replenishment", wo: "90368" },
+    { listing: "L0TFP56X", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 5, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0UYNL41", brand: "Bosch TT", name: "Bosch Air Purifier 4000", qty: 250, reason: "Listing Failed Eligibility Check", wo: "90368" },
+    { listing: "L0WW4VWS", brand: "BioCare", name: "BioAcidophilus Forte 30 Caps", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90368" }
   ];
 
-  // Northampton (UK, WH 138, WO 90369) — from UK Blocked WO's tab
+  // Northampton (UK, WH 138, WO 90369)
   const northamptonBlocked = [
-    { listing: "L05NU5KO", brand: "Polar", name: "Polar Flawless Clear Lacquer Spray Matt", qty: 24, reason: "Needs Replenishment" },
-    { listing: "L06JN2RO", brand: "Polar", name: "Polar Black Tarmac Paint 5L", qty: 23, reason: "Needs Replenishment" },
-    { listing: "L06T5AAV", brand: "Polar", name: "Polar Patio Floor Paint Cream", qty: 40, reason: "Needs Replenishment" },
-    { listing: "L0COIQKO", brand: "THE NORTH FACE", name: "Y2k Sports Backpack", qty: 20, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0EEDKF8", brand: "Polar", name: "Polar Direct to Rust Satin Black 2x400ml", qty: 397, reason: "Needs Replenishment" },
-    { listing: "L0GNJJXF", brand: "Polar", name: "Polar Direct to Rust Satin White 2x400ml", qty: 33, reason: "Needs Replenishment" },
-    { listing: "L0H839MR", brand: "THE NORTH FACE", name: "Resolve Fleece Jacket Women Black S", qty: 4, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0HDDQPA", brand: "Polar", name: "Polar Light Grey Floor & Garage Paint 5L", qty: 20, reason: "Needs Replenishment" },
-    { listing: "L0KPHJCY", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 12, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0PF34LN", brand: "Polar", name: "Polar Damp & Stain Block Spray Matt White", qty: 171, reason: "Needs Replenishment" },
-    { listing: "L0PT4EZX", brand: "Polar", name: "Polar Clear Leak Fix Spray 400ml", qty: 35, reason: "Needs Replenishment" },
-    { listing: "L0R6OJDM", brand: "Petsafe", name: "PetSafe Microchip Cat Door", qty: 120, reason: "Needs Replenishment" },
-    { listing: "L0SKABUB", brand: "THE NORTH FACE", name: "Gilman Duffel Bag M", qty: 9, reason: "Needs Replenishment" },
-    { listing: "L0VMMEIY", brand: "Petsafe", name: "Staywell Aluminium Pet Door XL", qty: 14, reason: "Listing Failed Eligibility Check" },
-    { listing: "L0X27JES", brand: "HEYDUDE", name: "Wendy Funk Mono", qty: 2, reason: "Listing Failed Eligibility Check" }
+    { listing: "L05NU5KO", brand: "Polar", name: "Polar Flawless Clear Lacquer Spray Matt", qty: 24, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L06JN2RO", brand: "Polar", name: "Polar Black Tarmac Paint 5L", qty: 23, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L06T5AAV", brand: "Polar", name: "Polar Patio Floor Paint Cream", qty: 40, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0COIQKO", brand: "THE NORTH FACE", name: "Y2k Sports Backpack", qty: 20, reason: "Listing Failed Eligibility Check", wo: "90369" },
+    { listing: "L0EEDKF8", brand: "Polar", name: "Polar Direct to Rust Satin Black 2x400ml", qty: 397, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0GNJJXF", brand: "Polar", name: "Polar Direct to Rust Satin White 2x400ml", qty: 33, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0H839MR", brand: "THE NORTH FACE", name: "Resolve Fleece Jacket Women Black S", qty: 4, reason: "Listing Failed Eligibility Check", wo: "90369" },
+    { listing: "L0HDDQPA", brand: "Polar", name: "Polar Light Grey Floor & Garage Paint 5L", qty: 20, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0KPHJCY", brand: "Petsafe", name: "PetSafe Tunnel Extension WHITE", qty: 12, reason: "Listing Failed Eligibility Check", wo: "90369" },
+    { listing: "L0PF34LN", brand: "Polar", name: "Polar Damp & Stain Block Spray Matt White", qty: 171, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0PT4EZX", brand: "Polar", name: "Polar Clear Leak Fix Spray 400ml", qty: 35, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0R6OJDM", brand: "Petsafe", name: "PetSafe Microchip Cat Door", qty: 120, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0SKABUB", brand: "THE NORTH FACE", name: "Gilman Duffel Bag M", qty: 9, reason: "Needs Replenishment", wo: "90369" },
+    { listing: "L0VMMEIY", brand: "Petsafe", name: "Staywell Aluminium Pet Door XL", qty: 14, reason: "Listing Failed Eligibility Check", wo: "90369" },
+    { listing: "L0X27JES", brand: "HEYDUDE", name: "Wendy Funk Mono", qty: 2, reason: "Listing Failed Eligibility Check", wo: "90369" }
   ];
 
   const historicalData = {
@@ -262,6 +289,19 @@
     wroclawBlocked: [70.89, 13.46, 8.47, 13.13, 6.59, 14.04, 19.81],
     northamptonBlocked: [7.79, 8.57, 27.27, 22.58, 20.00, 16.07, 30.61]
   };
+
+  // Populate brand dropdown from data
+  function populateBrandDropdown() {
+    const allBrands = new Set();
+    [...wroclawBlocked, ...northamptonBlocked].forEach(d => allBrands.add(d.brand));
+    const sorted = Array.from(allBrands).sort();
+    const sel = document.getElementById("f-brand");
+    sorted.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = b; opt.textContent = b;
+      sel.appendChild(opt);
+    });
+  }
 
   function computeKpis(warehouse) {
     if (warehouse === "wroclaw") {
@@ -315,13 +355,38 @@
     if (r === "Needs Replenishment") return "Replenishment";
     return r;
   }
-  function renderBlockedTable(data, elId) {
+
+  // Highlight matched search term in text
+  function highlight(text, term) {
+    if (!term) return text;
+    const re = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    return text.replace(re, "<mark>$1</mark>");
+  }
+
+  // Filter data based on all active filters
+  function filterData(data) {
     const reason = document.getElementById("f-reason").value;
-    const filtered = reason === "all" ? data : data.filter(d => d.reason === reason);
+    const brand = document.getElementById("f-brand").value;
+    const search = document.getElementById("f-search").value.trim().toLowerCase();
+    return data.filter(d => {
+      if (reason !== "all" && d.reason !== reason) return false;
+      if (brand !== "all" && d.brand !== brand) return false;
+      if (search) {
+        const haystack = `${d.listing} ${d.name} ${d.brand} ${d.wo} ${d.reason}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderBlockedTable(data, elId, countElId) {
+    const search = document.getElementById("f-search").value.trim();
+    const filtered = filterData(data);
+    document.getElementById(countElId).textContent = `Showing ${filtered.length} of ${data.length}`;
     document.getElementById(elId).innerHTML = filtered.map(d => `
       <tr>
-        <td><strong>${d.listing}</strong><br><span style="color:#888; font-size:11px;" class="listing-name">${d.name}</span></td>
-        <td>${d.brand}</td>
+        <td><strong>${highlight(d.listing, search)}</strong><br><span style="color:#888; font-size:11px;" class="listing-name">${highlight(d.name, search)}</span></td>
+        <td>${highlight(d.brand, search)}</td>
         <td class="num">${d.qty}</td>
         <td><span class="badge ${badgeClass(d.reason)}">${shortReason(d.reason)}</span></td>
       </tr>
@@ -390,20 +455,42 @@
     });
   }
 
-  function applyFilter() {
-    renderKpis();
-    renderBlockedTable(wroclawBlocked, "wroclaw-blocked");
-    renderBlockedTable(northamptonBlocked, "northampton-blocked");
-    renderReason();
-    renderBrand();
+  function updateSearchCount() {
+    const total = wroclawBlocked.length + northamptonBlocked.length;
+    const matched = filterData(wroclawBlocked).length + filterData(northamptonBlocked).length;
+    const search = document.getElementById("f-search").value.trim();
+    const brand = document.getElementById("f-brand").value;
+    const reason = document.getElementById("f-reason").value;
+    const hasActiveFilter = search || brand !== "all" || reason !== "all";
+    document.getElementById("search-count").textContent = hasActiveFilter ? `${matched} of ${total} WOs match` : "";
   }
 
+  function clearFilters() {
+    document.getElementById("f-warehouse").value = "all";
+    document.getElementById("f-reason").value = "all";
+    document.getElementById("f-brand").value = "all";
+    document.getElementById("f-search").value = "";
+    applyFilter();
+  }
+
+  function applyFilter() {
+    renderKpis();
+    renderBlockedTable(wroclawBlocked, "wroclaw-blocked", "wroclaw-count");
+    renderBlockedTable(northamptonBlocked, "northampton-blocked", "northampton-count");
+    renderReason();
+    renderBrand();
+    updateSearchCount();
+  }
+
+  // Init
+  populateBrandDropdown();
   renderKpis();
-  renderBlockedTable(wroclawBlocked, "wroclaw-blocked");
-  renderBlockedTable(northamptonBlocked, "northampton-blocked");
+  renderBlockedTable(wroclawBlocked, "wroclaw-blocked", "wroclaw-count");
+  renderBlockedTable(northamptonBlocked, "northampton-blocked", "northampton-count");
   renderTrend();
   renderReason();
   renderBrand();
+  updateSearchCount();
 </script>
 </body>
 </html>
